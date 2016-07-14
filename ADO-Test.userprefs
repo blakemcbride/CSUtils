@@ -1,0 +1,20 @@
+﻿<Properties StartupItem="ADO-Test.csproj">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="ADOUtils.cs">
+    <Files>
+      <File FileName="Program.cs" Line="1" Column="1" />
+      <File FileName="ADOUtils.cs" Line="402" Column="61" />
+      <File FileName="ADOFactory.cs" Line="1" Column="1" />
+      <File FileName="SinglyLinkedList.cs" Line="1" Column="1" />
+      <File FileName="StringUtils.cs" Line="1" Column="1" />
+      <File FileName="Printf.cs" Line="1" Column="1" />
+      <File FileName="NumericUtils.cs" Line="1" Column="1" />
+      <File FileName="DateUtils.cs" Line="1" Column="1" />
+      <File FileName="Readme.txt" Line="1" Column="1" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
