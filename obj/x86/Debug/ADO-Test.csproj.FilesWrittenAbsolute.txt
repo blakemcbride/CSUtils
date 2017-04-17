@@ -1,5 +1,0 @@
-/home/blake/Monodevelop/ADO-Test/obj/x86/Debug/.NETFramework,Version=v4.5.AssemblyAttribute.cs
-/home/blake/Monodevelop/ADO-Test/bin/Debug/ADO-Test.exe.mdb
-/home/blake/Monodevelop/ADO-Test/bin/Debug/ADO-Test.exe
-/home/blake/Monodevelop/ADO-Test/obj/x86/Debug/ADO-Test.exe
-/home/blake/Monodevelop/ADO-Test/obj/x86/Debug/ADO-Test.exe.mdb

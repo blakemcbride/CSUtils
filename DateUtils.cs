@@ -1,20 +1,51 @@
-﻿using System;
-using System.Text.RegularExpressions;
+﻿/*
+*  Copyright (c) 2015 Blake McBride (blake@mcbride.name)
+*  All rights reserved.
+*
+*  Permission is hereby granted, free of charge, to any person obtaining
+*  a copy of this software and associated documentation files (the
+*  "Software"), to deal in the Software without restriction, including
+*  without limitation the rights to use, copy, modify, merge, publish,
+*  distribute, sublicense, and/or sell copies of the Software, and to
+*  permit persons to whom the Software is furnished to do so, subject to
+*  the following conditions:
+*
+*  1. Redistributions of source code must retain the above copyright
+*  notice, this list of conditions, and the following disclaimer.
+*
+*  2. Redistributions in binary form must reproduce the above copyright
+*  notice, this list of conditions and the following disclaimer in the
+*  documentation and/or other materials provided with the distribution.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+*  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+*  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+*  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+*  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+*  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+*  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
+
+// Author: Blake McBride
 
 
-/// Author: Blake McBride
-
-
-namespace ADOTest {
+namespace CSUtils {
 
 	/// <summary>
 	/// Date utils.  Handles dates represented as an int in the form YYYYMMDD
 	/// </summary>
 	public static class DateUtils {
 
-		private static Regex DATE_FORMAT_MM_DD_YY = new Regex(@"(0?[1-9]|1[012])/(0?[1-9]|[12][0-9]|3[01])/\d\d");
-		private static Regex DATE_FORMAT_MM_DD_YYYY = new Regex(@"(0?[1-9]|1[012])/(0?[1-9]|[12][0-9]|3[01])/\d\d\d\d");
+		private static readonly Regex DATE_FORMAT_MM_DD_YY = new Regex(@"(0?[1-9]|1[012])/(0?[1-9]|[12][0-9]|3[01])/\d\d");
+		private static readonly Regex DATE_FORMAT_MM_DD_YYYY = new Regex(@"(0?[1-9]|1[012])/(0?[1-9]|[12][0-9]|3[01])/\d\d\d\d");
 
 		
 		public static int Today() {
@@ -31,7 +62,7 @@ namespace ADOTest {
 		}
 
 		public static int Date(int y, int m, int d) {
-			y = guessYear(y);	
+			y = GuessYear(y);
 			return y * 10000 + m * 100 + d;
 		}
 
@@ -47,7 +78,7 @@ namespace ADOTest {
 			return dt % 100;
 		}
 
-		private static int guessYear(int y) {
+		private static int GuessYear(int y) {
 			if (y >= 100)
 				return y;
 			int currentYear = Year(Today());
@@ -56,12 +87,11 @@ namespace ADOTest {
 			else
 				return 2000 + y;
 		}
-			
-		/// <summary>Returns integer representation of day of week.</summary>
-		/// <returns>1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat</returns>
-	    /// 
-		/// <param name="name="">date in the form YYYYMMDD</param>
-		public static int DayOfWeek(int date) {
+
+        /// <summary>Returns integer representation of day of week.</summary>
+        /// <returns>1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat</returns>
+        /// <param name="date">date in the form YYYYMMDD</param>
+        public static int DayOfWeek(int date) {
 			DateTime dt = new DateTime(Year(date), Month(date), Day(date));
 			if (dt.DayOfWeek == System.DayOfWeek.Sunday)
 				return 1;
@@ -113,9 +143,9 @@ namespace ADOTest {
 			}
 		}
 
-		private static string normalizeDate(string date) {
+		private static string NormalizeDate(string date) {
 			int length = date.Length;
-			int year = guessYear(Int32.Parse(date.Substring(length - 2)));
+			int year = GuessYear(Int32.Parse(date.Substring(length - 2)));
 			return date.Substring(0, length - 2) + year;
 		}
 			
@@ -132,7 +162,7 @@ namespace ADOTest {
 				if (DATE_FORMAT_MM_DD_YYYY.IsMatch(date))
 					return Date(DateTime.ParseExact(date, "M/d/yyyy", CultureInfo.CurrentCulture));
 				else if (DATE_FORMAT_MM_DD_YY.IsMatch(date))
-					return Date(DateTime.ParseExact(normalizeDate(date), "M/d/yyyy", CultureInfo.CurrentCulture));
+					return Date(DateTime.ParseExact(NormalizeDate(date), "M/d/yyyy", CultureInfo.CurrentCulture));
 			} catch {
 				return 0;
 			}
@@ -148,16 +178,16 @@ namespace ADOTest {
 		}
 			
 		public static string Format(Mask fmt, DateTime dt) {
-			return dt.ToString(getFmtStr(fmt));
+			return dt.ToString(GetFmtStr(fmt));
 		}
 
 		public static string Format(Mask fmt, int dt) {
-			return Date(dt).ToString(getFmtStr(fmt));
+			return Date(dt).ToString(GetFmtStr(fmt));
 		}
 
 		public enum Mask { MMDDYY, MMDDYYYY, MONTH_DAY_YEAR, MON_DAY_YEAR, YYYYMMDD, YYYY_MM_DD };
 
-		private static string getFmtStr(Mask i) {
+		private static string GetFmtStr(Mask i) {
 			switch (i) {
 			default:
 			case Mask.MMDDYY:
@@ -174,7 +204,21 @@ namespace ADOTest {
 				return "yyyy-MM-dd";   //  1959-06-08
 			}
 		}
+        public static DateTime RoundUp(DateTime dt, TimeSpan d) {
+            long delta = (d.Ticks - (dt.Ticks % d.Ticks)) % d.Ticks;
+            return new DateTime(dt.Ticks + delta);
+        }
 
-	}
+        public static DateTime RoundDown(DateTime dt, TimeSpan d) {
+            long delta = dt.Ticks % d.Ticks;
+            return new DateTime(dt.Ticks - delta);
+        }
+
+        public static DateTime RoundToNearest(DateTime dt, TimeSpan d) {
+            long delta = dt.Ticks % d.Ticks;
+            bool roundUp = delta > d.Ticks / 2;
+            return roundUp ? RoundUp(dt, d) : RoundDown(dt, d);
+        }
+    }
 }
 
