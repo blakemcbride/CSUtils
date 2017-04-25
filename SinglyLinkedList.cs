@@ -231,6 +231,15 @@ namespace CSUtils
         public SinglyLinkedList() { }
 
         /// <summary>
+        /// Copy a list to a new list.  All of the items are copied to a new set of nodes.
+        /// </summary>
+        /// <param name="lst"></param>
+        public SinglyLinkedList(SinglyLinkedList<T> lst) {
+            for (ListNode<T> node=lst.First ; node != null ; node = node.Next)
+                AddLast(node.Value);
+        }
+
+        /// <summary>
         /// Indexer to iterate through the list and fetch the item
         /// </summary>
         /// <param name="index"></param>
@@ -666,6 +675,44 @@ namespace CSUtils
             ListNode<T> midNode = GetMiddleItem();
             Last.Next = midNode;
         }
+
+        /// <summary>
+        /// This method appends one list to the end of another.  After the append operation, the second list (lst) should no longer be used if either
+        /// list has a list mofifying operation performed on it.  This method is fast but distructive (to the second list).  A slower, non-distructive
+        /// variant is called Append.
+        /// </summary>
+        /// <param name="lst"></param>
+        /// <returns>The original list now appended with the second list.</returns>
+        public SinglyLinkedList<T> DAppend(SinglyLinkedList<T> lst) {
+            if (lst.IsEmpty)
+                return this;
+            if (IsEmpty)
+                First = lst.First;
+            else
+                Last.Next = lst.First;
+            Last = lst.Last;
+            Count += lst.Count;
+            return this;
+        }
+
+        /// <summary>
+        /// This method appends one list to the end of another in a slower but non-distructive way.  A fast, distructive method is named DAppend.
+        /// </summary>
+        /// <param name="lst"></param>
+        /// <returns>The original list now appended with the second list.</returns>
+        public SinglyLinkedList<T> Append(SinglyLinkedList<T> lst) {
+            if (lst.IsEmpty)
+                return this;
+            SinglyLinkedList<T> copy = new SinglyLinkedList<T>(lst);
+            if (IsEmpty)
+                First = copy.First;
+            else
+                Last.Next = copy.First;
+            Last = copy.Last;
+            Count += copy.Count;
+            return this;
+        }
+
     }
 
     #endregion

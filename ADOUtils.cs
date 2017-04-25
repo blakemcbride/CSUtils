@@ -62,7 +62,7 @@ namespace CSUtils {
         private DbTransaction trans;
         private bool inTrans;
         private readonly string connectionString;
-        private readonly Dictionary<string, SinglyLinkedList<string>> primaryKeyColumns = new Dictionary<string, SinglyLinkedList<string>>();
+        private readonly Dictionary<string, List<string>> primaryKeyColumns = new Dictionary<string, List<string>>();
         private readonly Dictionary<string, bool> TableExistanceCache = new Dictionary<string, bool>();
 
         private ADOFactory CalcFactory() {
@@ -155,9 +155,9 @@ namespace CSUtils {
             return r;
         }
 
-        public SinglyLinkedList<Record> FetchAll(string sql, params object[] argv) {
+        public List<Record> FetchAll(string sql, params object[] argv) {
             Command cmd = NewCommand();
-            SinglyLinkedList<Record> recs = cmd.InternalExecute(null, sql, argv).FetchAll();
+            List<Record> recs = cmd.InternalExecute(null, sql, argv).FetchAll();
             cmd.Dispose();
             return recs;
         }
@@ -169,7 +169,7 @@ namespace CSUtils {
             return rec;
         }
 
-        public SinglyLinkedList<string> GetPrimaryKeyColumns(string table) {
+        public List<string> GetPrimaryKeyColumns(string table) {
             string schema = null;
 
             table = table.Replace("[", string.Empty);
@@ -204,7 +204,7 @@ namespace CSUtils {
                 cmd.CommandText += "AND tc.TABLE_NAME = @table ORDER BY ORDINAL_POSITION";
 
                 using (DbDataReader reader = cmd.ExecuteReader(CommandBehavior.KeyInfo)) {
-                    SinglyLinkedList<string> res = new SinglyLinkedList<string>();
+                    List<string> res = new List<string>();
                     while (reader.Read()) {
                         var str = reader[0];
                         if (str != DBNull.Value)
@@ -412,7 +412,7 @@ namespace CSUtils {
                         throw new Exception("No table found");
                     tname = tname.Substring(0, idx);
 
-                    SinglyLinkedList<string> pcols = conn.GetPrimaryKeyColumns(tname);
+                    List<string> pcols = conn.GetPrimaryKeyColumns(tname);
                     if (pcols.Count != 1)
                         throw new Exception("Primary key for table " + tname + " must be a single, serial column.");
 
@@ -450,7 +450,7 @@ namespace CSUtils {
             return InternalExecute(null, sql, argv);
         }
 
-        public SinglyLinkedList<Record> FetchAll(string sql, params object [] argv)
+        public List<Record> FetchAll(string sql, params object [] argv)
         {
             return InternalExecute(null, sql, argv).FetchAll();
         }
@@ -555,16 +555,16 @@ namespace CSUtils {
             return lastRec;
         }
 
-        public SinglyLinkedList<Record> FetchAll() {
-            var r = new SinglyLinkedList<Record>();
+        public List<Record> FetchAll() {
+            var r = new List<Record>();
             Record rec;
             while (null != (rec=NextUnbuffered()))
                 r.Add(rec);
             return r;
         }
 
-        public SinglyLinkedList<object> FetchAllOneColumn() {
-            var r = new SinglyLinkedList<object>();
+        public List<object> FetchAllOneColumn() {
+            var r = new List<object>();
             Record rec;
             while (null != (rec=NextUnbuffered()))
                 r.Add(rec.GetAllColumns().First());
@@ -698,7 +698,7 @@ namespace CSUtils {
                 throw new InvalidOperationException("Can't update record; not from select");
             if (cmd.tableinfo == null && table == null)
                 throw new InvalidOperationException("Can't update record; no table name");
-            var changedColumns = new SinglyLinkedList<KeyValuePair<string, object>>();
+            var changedColumns = new List<KeyValuePair<string, object>>();
             foreach (KeyValuePair<string, object> item in cols)
                 if (!ocols.ContainsKey(item.Key) || ocols[item.Key] != item.Value)
                     changedColumns.Add(new KeyValuePair<string, object>(item.Key, item.Value));
