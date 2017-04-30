@@ -744,13 +744,13 @@ namespace CSUtils {
             else
                 dbCmd.Parameters.Clear();
             StringBuilder sql = new StringBuilder("delete from " + table + " where ");
-            bool needComma = false;
+            bool needAnd = false;
             var primaryKeyColumns = cmd.conn.GetPrimaryKeyColumns(table);
             foreach (string keyColumn in primaryKeyColumns) {
-                if (needComma)
-                    sql.Append(", ");
+                if (needAnd)
+                    sql.Append(" and ");
                 else
-                    needComma = true;
+                    needAnd = true;
                 sql.Append(keyColumn + "=@" + keyColumn);
                 Command.AddParameter(dbCmd, keyColumn, ocols[keyColumn.ToLower()]);
             }
