@@ -39,13 +39,11 @@ namespace CSUtils {
     using System.Collections.Generic;
     using System.Data;
     using System.Data.Common;
-    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Runtime.Serialization.Formatters.Binary;
     using System.Text;
     using MySql.Data.MySqlClient;
-
     public enum ConnectionType {MicrosoftServer, PostgreSQL, MySQL};
 
     public class Connection : IDisposable {
@@ -719,12 +717,12 @@ namespace CSUtils {
                 }
                 sql.Append(" where ");
                 var primaryKeyColumns = cmd.conn.GetPrimaryKeyColumns(table);
-                needComma = false;
+                bool needAnd = false;
                 foreach (string keyColumn in primaryKeyColumns) {
-                    if (needComma)
-                        sql.Append(", ");
+                    if (needAnd)
+                        sql.Append(" and ");
                     else
-                        needComma = true;
+                        needAnd = true;
                     sql.Append(keyColumn + "=@" + keyColumn);
                     Command.AddParameter(dbCmd, keyColumn, ocols[keyColumn.ToLower()]);
                 }
