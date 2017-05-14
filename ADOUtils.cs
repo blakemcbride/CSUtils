@@ -34,16 +34,19 @@
 
 #define USE_POSTGRESQL   //  define if using PostgreSQL
 
+
 namespace CSUtils {
     using System;
     using System.Collections.Generic;
     using System.Data;
     using System.Data.Common;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Runtime.Serialization.Formatters.Binary;
     using System.Text;
     using MySql.Data.MySqlClient;
+
     public enum ConnectionType {MicrosoftServer, PostgreSQL, MySQL};
 
     public class Connection : IDisposable {
@@ -252,6 +255,7 @@ namespace CSUtils {
             }
             if (rconn != null) {
                 rconn.Close();
+                rconn.Dispose();
                 rconn = null;
             }
         }
@@ -286,7 +290,7 @@ namespace CSUtils {
         {
             DbParameter p = cmd.CreateParameter();
             p.ParameterName = "@" + param;
-            p.Value = val;
+            p.Value = val ?? DBNull.Value;
             p.Direction = ParameterDirection.Input;
             cmd.Parameters.Add(p);
         }
@@ -633,11 +637,11 @@ namespace CSUtils {
         public object Get(string name) {
             object val;
             bool r = cols.TryGetValue(name.ToLower(), out val);
-            return r ? val : null;
+            return r && val == DBNull.Value ? null : val;
         }
 
         public object Set(string name, object val) {
-            cols[name.ToLower()] = val;
+            cols[name.ToLower()] = val ?? DBNull.Value;
             return val;
         }
 
@@ -698,7 +702,7 @@ namespace CSUtils {
                 throw new InvalidOperationException("Can't update record; no table name");
             var changedColumns = new List<KeyValuePair<string, object>>();
             foreach (KeyValuePair<string, object> item in cols)
-                if (!ocols.ContainsKey(item.Key) || ocols[item.Key] != item.Value)
+                if (!ocols.ContainsKey(item.Key) || (ocols[item.Key] ?? DBNull.Value) != (item.Value ?? DBNull.Value))
                     changedColumns.Add(new KeyValuePair<string, object>(item.Key, item.Value));
             if (changedColumns.Count != 0) {
                 if (dbCmd == null)
