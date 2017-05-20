@@ -233,13 +233,9 @@ namespace CSUtils {
                 return TableExistanceCache[table];
             bool res = false;
             using (Command cmd = NewCommand()) {
-                if (schema != null)
-                    cmd.AddParameter("schema", schema);
-                cmd.AddParameter("table", table);
-                string sql = "select count(*) from information_schema.tables where table_name = @table";
-                if (schema != null)
-                    sql += " and table_schema = @schema";
-                using (Cursor cursor = cmd.Execute(sql))
+                if (schema == null)
+                    schema = "%";
+                using (Cursor cursor = cmd.Execute("select count(*) from information_schema.tables where table_schema like ? and table_name = ?", schema, table))
                     if (cursor.IsNextUnbuffered()) {
                         Record rec = cursor.GetRecord();
                         res = (long)rec["count(*)"] != 0;
@@ -310,13 +306,18 @@ namespace CSUtils {
 
         public int ExecuteNonQuery(string sql, params object [] argv) {
             isSelect = false;
-            lastSQL = sql;
-            cmd.CommandText = ProcessPositionalParameters(cmd, sql, argv);
+            if (lastSQL == sql)
+                ProcessPositionalParametersOnly(cmd, sql, argv);
+            else {
+                lastSQL = sql;
+                cmd.CommandText = ProcessPositionalParameters(cmd, sql, argv);
+            }
             return cmd.ExecuteNonQuery();
         }
 
         /// <summary>
         ///  Code to convert positional ? parameters into ADO.NET named parameters
+        ///  and apply the parameter values
         /// </summary>
         /// <param name="cmd"></param>
         /// <param name="sql"></param>
@@ -324,8 +325,9 @@ namespace CSUtils {
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
         internal static string ProcessPositionalParameters(DbCommand cmd, string sql, object [] argv) {
-            if (argv.Length != 0) {
+            if (argv.Length != 0)
                 cmd.Parameters.Clear();
+            if (argv.Length != 0) {
                 int paramIdx = 0;
                 bool inString = false;
                 bool inEscape = false;
@@ -360,13 +362,55 @@ namespace CSUtils {
             return sql;
         }
 
+        /// <summary>
+        ///  Code to apply the parameter values
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="sql"></param>
+        /// <param name="argv"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        internal static void ProcessPositionalParametersOnly(DbCommand cmd, string sql, object[] argv) {
+            if (argv.Length != 0)
+                cmd.Parameters.Clear();
+            if (argv.Length != 0) {
+                int paramIdx = 0;
+                bool inString = false;
+                bool inEscape = false;
+                for (int i = 0 ; i < sql.Length ; i++) {
+                    char c = sql[i];
+                    if (inEscape)
+                        inEscape = false;
+                    else if (c == '\\')
+                        inEscape = true;
+                    else if (inString) {
+                        if (c == '\'')
+                            if (i + 1 < sql.Length && sql[i + 1] == '\'')
+                                i++;
+                            else
+                                inString = false;
+                    } else if (c == '\'')
+                        inString = true;
+                    else if (c == '?') {
+                        if (paramIdx >= argv.Length)
+                            throw new Exception("missing parameter value");
+                        string pname = "param" + paramIdx;
+                        AddParameter(cmd, pname, argv[paramIdx++]);
+                        continue;
+                    }
+                }
+            }
+        }
+
         public Cursor Execute(Type tblinfo, string sql, params object[] argv) {
             return InternalExecute(tblinfo, sql, argv);
         }
 
         internal Cursor InternalExecute(Type tblinfo, string sql, object [] argv) {
-            if (tblinfo == tableinfo && sql == lastSQL)
+            if (tblinfo == tableinfo && sql == lastSQL) {
+                ProcessPositionalParametersOnly(cmd, sql, argv);
                 return Execute();
+            }
             lastSQL = sql;
             sql = sql.TrimStart();
             if (cmd == null)
@@ -393,8 +437,10 @@ namespace CSUtils {
         }
 
         private object ExecuteAutoInc(Type tblinfo, string sql, params object [] argv) {
-            if (tblinfo == tableinfo && sql == lastSQL)
+            if (tblinfo == tableinfo && sql == lastSQL) {
+                ProcessPositionalParametersOnly(cmd, sql, argv);
                 return Execute();
+            }
             lastSQL = sql;
             sql = sql.TrimStart();
             if (cmd == null)
@@ -447,8 +493,6 @@ namespace CSUtils {
 
         public Cursor Execute(string sql, params object [] argv)
         {
-            if (sql == lastSQL)
-                return Execute();
             return InternalExecute(null, sql, argv);
         }
 
