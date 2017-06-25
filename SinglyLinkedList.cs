@@ -7,8 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace CSUtils
-{
+namespace CSUtils {
     #region Test class for my singly linked list
 
     /// <summary>

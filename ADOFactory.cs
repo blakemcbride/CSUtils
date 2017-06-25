@@ -31,7 +31,7 @@
 */
 
 
-#define USE_POSTGRESQL   //  define if using PostgreSQL
+#define USE_POSTGRESQL     //  define if using PostgreSQL
 //#define MYSQL_EXTERNAL     //  define if MySQL connection is externally supplied
 
 using System.Data;

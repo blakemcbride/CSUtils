@@ -40,7 +40,6 @@ namespace CSUtils {
     using System.Collections.Generic;
     using System.Data;
     using System.Data.Common;
-    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Runtime.Serialization.Formatters.Binary;
@@ -50,6 +49,7 @@ namespace CSUtils {
     public enum ConnectionType {MicrosoftServer, PostgreSQL, MySQL};
 
     public class Connection : IDisposable {
+        private bool disposed = false;
 #if USE_POSTGRESQL
         private static readonly ADOFactory pgFactory = new PGFactory();
 #else
@@ -245,16 +245,28 @@ namespace CSUtils {
         }
 
         public void Dispose() {
-            if (inTrans) {
-                trans.Rollback();
-                inTrans = false;
-            }
-            if (rconn != null) {
-                rconn.Close();
-                rconn.Dispose();
-                rconn = null;
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            if (!disposed) {
+                if (disposing) {
+                    if (inTrans) {
+                        trans.Rollback();
+                        inTrans = false;
+                    }
+                    if (rconn != null) {
+                        rconn.Close();
+                        rconn.Dispose();
+                        rconn = null;
+                    }
+                }
+                disposed = true;
             }
         }
+
+        ~Connection() { Dispose(false); }
 
         public Command NewCommand() {
             return new Command(this);
@@ -276,6 +288,7 @@ namespace CSUtils {
         internal string tname;
         internal Type tableinfo;  // should be here because may be shared among multiple cursors
         private string lastSQL;
+        private bool disposed = false;
 
         internal Command(Connection c) {
             conn = c;
@@ -513,11 +526,23 @@ namespace CSUtils {
         }
 
         public void Dispose() {
-            if (cmd != null) {
-                cmd.Dispose();
-                cmd = null;
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            if (!disposed) {
+                if (disposing) {
+                    if (cmd != null) {
+                        cmd.Dispose();
+                        cmd = null;
+                    }
+                }
+                disposed = true;
             }
         }
+
+        ~Command() { Dispose(false); }
     }
 
     public class Cursor : IDisposable {
@@ -528,6 +553,7 @@ namespace CSUtils {
         private long recordsBuffered;
         private long recordsRead;
         private Record lastRec;
+        private bool disposed = false;
 
         public Cursor(Command c) {
             cmd = c;
@@ -594,6 +620,8 @@ namespace CSUtils {
             lastRec = NextUnbuffered();
             if (lastRec != null)
                 Dispose();
+            else
+                CloseReader();
             return lastRec;
         }
 
@@ -625,21 +653,34 @@ namespace CSUtils {
         }
 
         public void Dispose() {
-            CloseReader();
-            if (fs != null) {
-                fs.Close();
-                fs = null;
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            if (!disposed) {
+                if (disposing) {
+                    CloseReader();
+                    if (fs != null) {
+                        fs.Close();
+                        fs = null;
+                    }
+                }
+                disposed = true;
             }
         }
+
+        ~Cursor() { Dispose(false); }
     }
 
     public class Record : IDisposable {
-        private readonly Dictionary<string,object> cols;
-        private readonly Dictionary<string,object> ocols;
+        private readonly Dictionary<string, object> cols;
+        private readonly Dictionary<string, object> ocols;
         private readonly Connection conn;
         private readonly Command cmd;
         private readonly string table;
         private DbCommand dbCmd;
+        private bool disposed = false;
 
         public Record(Connection c, string tbl) {
             conn = c;
@@ -654,7 +695,7 @@ namespace CSUtils {
             table = tbl;
             cols = new Dictionary<string, object>();
             ocols = new Dictionary<string, object>();
-            for (int i = 0; i < reader.FieldCount; i++) {
+            for (int i = 0 ; i < reader.FieldCount ; i++) {
                 string name = reader.GetName(i).ToLower();
                 object val = reader.GetValue(i);
                 cols[name] = val;
@@ -690,12 +731,8 @@ namespace CSUtils {
         }
 
         public object this[string fn] {
-            get {
-                return Get(fn);
-            }
-            set {
-                Set(fn, value);
-            }
+            get { return Get(fn); }
+            set { Set(fn, value); }
         }
 
         public Dictionary<string, object> GetAllColumns() {
@@ -737,6 +774,51 @@ namespace CSUtils {
 
             dbCmd.CommandText = sql.ToString();
             return dbCmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Works like Insert() except also returns the value of an auto incrementing column (presumed to be the primary key).
+        /// The returned value should be typecast to the correct type.
+        /// </summary>
+        /// <returns>the value used in the auto-inc column as an object</returns>
+        public object InsertAutoInc() {
+            if (cols.Count == 0)
+                return 0;
+            StringBuilder sql = new StringBuilder("insert into " + table + " (");
+            bool needComma = false;
+            foreach (KeyValuePair<string, object> fld in cols) {
+                if (needComma)
+                    sql.Append(", ");
+                else
+                    needComma = true;
+                sql.Append(fld.Key);
+            }
+            sql.Append(") values (");
+            needComma = false;
+            if (dbCmd == null)
+                dbCmd = conn.GetFactory().CreateCommand(conn.rconn);
+            else
+                dbCmd.Parameters.Clear();
+            foreach (KeyValuePair<string, object> keyColumn in cols) {
+                if (needComma)
+                    sql.Append(", ");
+                else
+                    needComma = true;
+                sql.Append("@" + keyColumn.Key);
+                Command.AddParameter(dbCmd, keyColumn.Key, keyColumn.Value);
+            }
+            sql.Append(")");
+            if (conn.type == ConnectionType.MicrosoftServer)
+                sql.Append("; select scope_identity();");
+            else if (conn.type == ConnectionType.PostgreSQL)
+                sql.Append(" returning " + conn.GetPrimaryKeyColumns(table)[0]);
+            else if (conn.type == ConnectionType.MySQL)
+                sql.Append("; select last_insert_id();");
+            else
+                throw new InvalidOperationException("Serial columns not supported for this database type");
+
+            dbCmd.CommandText = sql.ToString();
+            return dbCmd.ExecuteScalar();
         }
 
         public int Update() {
@@ -802,14 +884,26 @@ namespace CSUtils {
             }
             dbCmd.CommandText = sql.ToString();
             return dbCmd.ExecuteNonQuery();
-    }
+        }
 
         public void Dispose() {
-            if (dbCmd != null) {
-                dbCmd.Dispose();
-                dbCmd = null;
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing) {
+            if (!disposed) {
+                if (disposing) {
+                    if (dbCmd != null) {
+                        dbCmd.Dispose();
+                        dbCmd = null;
+                    }
+                }
+                disposed = true;
             }
         }
+
+        ~Record() { Dispose(false); }
     }
 
 }

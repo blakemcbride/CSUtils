@@ -32,7 +32,7 @@
 
 using System.Text;
 
-/// Author: Blake McBride
+// Author: Blake McBride
 
 namespace CSUtils {
 	
