@@ -134,13 +134,7 @@ namespace CSUtils {
                     if (value.StartsWith("\"") && value.EndsWith("\"") ||
                             value.StartsWith("'") && value.EndsWith("'"))
                         value = value.Substring(1, value.Length - 2);
-
-                    try {
-                        //ignore dublicates
-                        list.Add(key, value);
-                    } catch {
-                        // ignored
-                    }
+                    list[key] = value;  //  take the last value assigned
                 }
             }
         }
