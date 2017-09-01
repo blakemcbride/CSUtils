@@ -64,6 +64,7 @@ namespace CSUtils {
         private bool inTrans;
         private readonly string connectionString;
         private readonly Dictionary<string, List<string>> primaryKeyColumns = new Dictionary<string, List<string>>();
+        private readonly Dictionary<string, List<string>> allColumns = new Dictionary<string, List<string>>();
         private readonly Dictionary<string, bool> TableExistanceCache = new Dictionary<string, bool>();
 
         private ADOFactory CalcFactory() {
@@ -212,6 +213,48 @@ namespace CSUtils {
                             res.Add((string) str);
                     }
                     primaryKeyColumns[table] = res;
+                    return res;
+                }
+            }
+        }
+
+        public List<string> GetAllColumns(string table) {
+            string schema = null;
+
+            table = table.Replace("[", string.Empty);
+            table = table.Replace("]", string.Empty);
+            if (table.Contains(".")) {
+                string[] parts = table.Split('.');
+                schema = parts[parts.Length - 2];
+                table = parts[parts.Length - 1];
+            }
+
+            if (allColumns.ContainsKey(table))
+                return allColumns[table];
+
+            using (DbCommand cmd = rconn.CreateCommand()) {
+                Command.AddParameter(cmd, "table", table);
+
+                if (schema != null)
+                    Command.AddParameter(cmd, "schema", schema);
+
+                cmd.CommandText = @"SELECT COLUMN_NAME
+                                FROM INFORMATION_SCHEMA.COLUMNS
+                                WHERE TABLE_NAME = @table ";
+                if (schema != null)
+                    cmd.CommandText += "AND TABLE_SCHEMA = @schema ";
+                if (type == ConnectionType.MicrosoftServer)  //  ignore computed columns
+                    cmd.CommandText += "AND COLUMNPROPERTY( OBJECT_ID(table_name), column_name, 'IsComputed' ) = 0 ";
+                cmd.CommandText += "ORDER BY ORDINAL_POSITION";
+
+                using (DbDataReader reader = cmd.ExecuteReader()) {
+                    List<string> res = new List<string>();
+                    while (reader.Read()) {
+                        var str = reader[0];
+                        if (str != DBNull.Value)
+                            res.Add((string) str);
+                    }
+                    allColumns[table] = res;
                     return res;
                 }
             }
@@ -776,6 +819,12 @@ namespace CSUtils {
             return dbCmd.ExecuteNonQuery();
         }
 
+        public void DeleteColumn(string cname) {
+            cname = cname.ToLower();
+            if (cols.ContainsKey(cname))
+                cols.Remove(cname);
+        }
+
         /// <summary>
         /// Works like Insert() except also returns the value of an auto incrementing column (presumed to be the primary key).
         /// The returned value should be typecast to the correct type.
@@ -860,6 +909,17 @@ namespace CSUtils {
                 return dbCmd.ExecuteNonQuery();
             }
             return 0;
+        }
+
+        public void Copy(Record r) {
+            if (table == null)
+                return;
+            List<string> acols = conn.GetAllColumns(table);
+            foreach (string col in acols) {
+                string lcol = col.ToLower();
+                if (r.cols.ContainsKey(lcol))
+                    cols[lcol] = r.cols[lcol];
+            }
         }
 
         public int Delete() {
